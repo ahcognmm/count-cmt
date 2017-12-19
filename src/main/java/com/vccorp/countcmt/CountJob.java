@@ -35,7 +35,7 @@ public class CountJob {
 
         Dataset<Row> comment;
         JavaRDD<Row> cmt, cmtOfPost;
-        JavaRDD<String> input = null;
+        JavaRDD<String> input;
         JavaPairRDD<String, Integer> input1 = null;
         JavaPairRDD<String, Integer> finalOut;
 
@@ -57,49 +57,37 @@ public class CountJob {
         System.out.println("Hien lan 2 ==========" + cmtOfPost.count());
         int size = fileNames.size() - 1;
 
-        for (int i = 0; i < size; i++) {
-            if (i > 50) {
-                fileNames.remove(50);
-            }
-        }
-
-
-        //JavaRDD<String> file = sc.parallelize(JavaConverters.collectionAsScalaIterableConverter(fileNames).asScala().toSeq(),0,null).toJavaRDD();
-
+        //delete some elements of array
+//        for (int i = 0; i < size; i++) {
+//            if (i > 50) {
+//                fileNames.remove(50);
+//            }
+//        }
+        //cant use forEach cause cmt is not final
         for (String s : fileNames) {
             Dataset<Row> cmtt = spark.read().json("file:///adscloud2/fb-logging/page-comments/2017-11-30/" + s);
             cmt = cmt.union(cmtt.select("createTime").javaRDD());
             cmtOfPost = cmtOfPost.union(cmtt.select("postId").javaRDD());
         }
 
-//
-//        JavaRDD<String> input = cmt.map(o -> {
-//            String[] arr = formatString(String.valueOf(o)).split(" ");
-//            if (arr.length > 2) return arr[0] + " " + arr[1] + " " + arr[2];
-//            return "syntax error";
-//        });
-//
-//
-//        JavaPairRDD<String, Integer> result = input.mapToPair(s -> new Tuple2(s, 1));
-//        JavaPairRDD<String, Integer> finalRs = result.reduceByKey((i1, i2) -> i1 + i2);
-//        finalRs.cache();
-//        finalRs.saveAsTextFile("file:///data/hapn/output");
-//        System.out.println("hello=====================================" + finalRs.count());
 
-        try {
-            input = cmtOfPost.map(s -> String.valueOf(s));
-        } catch (Exception e) {
-            System.out.println("EROR==========input===========\n" + e.toString());
-        }
-        try {
-            input1 = input.mapToPair(s -> new Tuple2(s, 1));
-        } catch (Exception e) {
-            System.out.println("EROR==========input1===========\n" + e.toString());
-        }
+        //count cmt per day
+        input = cmt.map(o -> {
+            String[] arr = formatString(String.valueOf(o)).split(" ");
+            if (arr.length > 2) return arr[0] + " " + arr[1] + " " + arr[2];
+            return "syntax error";
+        });
+        JavaPairRDD<String, Integer> result = input.mapToPair(s -> new Tuple2(s, 1));
+        JavaPairRDD<String, Integer> finalRs = result.reduceByKey((i1, i2) -> i1 + i2);
+        finalRs.cache();
+        System.out.println("total syntax error is: "+ finalRs.lookup("syntax error"));
+        System.out.println("total cmt of 2017-11-30:"+finalRs.lookup("30 Nov 2017"));
+        System.out.println("hello=====================================" + finalRs.count());
 
+        //count cmt per a post
+        input1 = cmtOfPost.map(s -> String.valueOf(s)).mapToPair(s -> new Tuple2(s, 1));
         finalOut = input1.reduceByKey((i1, i2) -> i1 + i2);
-        finalOut.saveAsTextFile("file:///data/hapn/output2");
-
+//        finalOut.saveAsTextFile("file:///data/hapn/output2");
         System.out.println("finalOut.count() ===== " + finalOut.count());
     }
 
