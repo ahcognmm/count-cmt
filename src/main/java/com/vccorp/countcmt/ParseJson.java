@@ -1,29 +1,26 @@
-//package com.vccorp.countcmt;
-//
-//import org.apache.spark.api.java.JavaRDD;
-//import org.apache.spark.api.java.function.FlatMapFunction;
-//import org.codehaus.jackson.map.ObjectMapper;
-//
-//import java.util.ArrayList;
-//import java.util.Arrays;
-//import java.util.Iterator;
-//
-//public class ParseJson implements FlatMapFunction<Iterator<String>,Comment>{
-//
-//    JavaRDD<String> lines, input;
-//
-//    public ParseJson (JavaRDD<String> lines){
-//        this.lines = lines;
-//        input =lines.flatMap(s-> Arrays.asList(s.split(" ")).iterator());
-//    }
-//
-//    @Override
-//    public Iterator<Comment> call(Iterator<String> stringIterator) throws Exception {
-//        ArrayList<Comment> comments = new ArrayList<>();
-//        ObjectMapper mapper = new ObjectMapper();
-//        while (input.collect().iterator().hasNext()){
-//
-//        }
-//        return null;
-//    }
-//}
+package com.vccorp.countcmt;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class ParseJson {
+
+
+
+    public static void main(String[] args) {
+
+        ArrayList<Integer> list = new ArrayList<>();
+        for(int i =0; i<100 ; i++){
+            list.add(i);
+        }
+
+        for(int i =0; i<100;i++){
+            if(i >50) list.remove(50);
+        }
+
+        System.out.println(list.size());
+
+    }
+
+}
