@@ -14,6 +14,8 @@ object CountPost {
         var fileNames = getFileNames("/adscloud2/fb-logging/page-comments/2017-11-30//")
         var input = spark.read.json(s"file:///adscloud2/fb-logging/page-comments/2017-11-30//${fileNames(0)}").select("userId", "postID")
 
+	val idTest = Integer.parseInt(args(1))
+
         val fileSize = Integer.parseInt(args(0))
         fileNames = fileNames.take(fileSize)
 
@@ -28,17 +30,18 @@ object CountPost {
             (string(0), string(1))
         }).rdd
         val rs = pair.groupByKey
+	pair.cache()
         rs.cache()
 
         //result test
         val pairCount = pair.count
         val rsCount = rs.count
-        val idTest = rs.lookup("122649745154715")
+        val rsTest = rs.lookup(s"[${idTest}")
 
         println(s"=====================$pairCount==============")
         println(s"=====================$rsCount++++++++++++++++")
-        println(s"id: 122649745154715::::::$idTest")
-        //shutsrs.foreach(println(_))
+        println(s"id: ${idTest}::::::$rsTest")
+        
         spark.close()
 
     }
