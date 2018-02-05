@@ -1,25 +1,25 @@
 import org.apache.spark.graphx.{Edge, Graph, VertexId}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{SparkConf, SparkContext}
 
-class UserNewsJob(val quanOfFile: Int, val sc :SparkContext) {
+class UserNewsJob(val quanOfFile: Int, val sc: SparkContext) {
 
     protected def getGraph: Graph[String, String] = {
 
         var listFileName = new GetListFile("/home/ahcogn/Documents/user_data/2018-01-16").getList
 
-        var textFile: RDD[String] = sc.textFile(s"/home/ahcogn/Documents/user_data/2018-01-16/${listFileName(0)}")
-                .flatMap(line => line.split("\n"))
-        listFileName.take(quanOfFile).foreach(file => {
-            if (file != listFileName(0)) {
-                val stickFile: RDD[String] = sc.textFile(s"/home/ahcogn/Documents/user_data/2018-01-16/$file").flatMap(line => line.split("\n"))
-                textFile = textFile.union(stickFile)
-            }
+        
+        var listRawRDD: Seq[RDD[String]] = listFileName.take(quanOfFile).map(file => {
+            sc.textFile(s"/home/ahcogn/Documents/user_data/2018-01-16/$file")
         })
+        val rawtextFile = sc.union(listRawRDD)
+
+        val textFile = rawtextFile.flatMap(line => line.split("\n"))
 
         // create vertex : user_news
         // user_news contain: user & news
-        // malformed user return id = -1
+        // malformed .flatMap(line => line.split("\n")user return id = -1
         val user: RDD[(VertexId, String)] = textFile.map(line => {
             val words = line.split("\t")
             try {
@@ -29,10 +29,12 @@ class UserNewsJob(val quanOfFile: Int, val sc :SparkContext) {
             }
         }).distinct
 
-        val news: RDD[(String, Long)] = textFile.map(line => {
+        val rawNews = textFile.map(line => {
             val words = line.split("\t")
             words(8) + words(11)
-        }).distinct().zipWithUniqueId()
+        }).distinct()
+
+        val news: RDD[(String, Long)] = rawNews.zipWithUniqueId()
 
         val user_news: RDD[(VertexId, String)] = user.union(news.map(news => (news._2, news._1)))
 
@@ -74,7 +76,7 @@ class UserNewsJob(val quanOfFile: Int, val sc :SparkContext) {
 
     def getUsers(newsLink: String): Array[String] = {
         val newsId = graphX.vertices.filter(news => news._2 == newsLink).map(news => news._1).collect()(0)
-        val edgeRDDs = getGraph.edges.filter(edgeRDD => edgeRDD.dstId == newsId)
+        val edgeRDDs = graphX.edges.filter(edgeRDD => edgeRDD.dstId == newsId)
         edgeRDDs.map(edgeRDDs => edgeRDDs.srcId.toString).collect
     }
 
