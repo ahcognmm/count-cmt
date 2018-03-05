@@ -1,107 +1,95 @@
 import java.io.ByteArrayOutputStream
 
-import org.apache.spark.graphx.{Edge, Graph, VertexId}
+import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkContext, SparkEnv}
+import org.apache.spark.{SparkConf, SparkContext, SparkEnv}
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.storage.StorageLevel
 
-class DeBug(val quanOfFile: Int, val sc: SparkContext) {
+object DeBug {
+    val initialMsg = Seq(9999)
 
-    def getGraph(newsLink: String) = {
+    def main(args: Array[String]): Unit = {
 
-        val si = SparkEnv.get.closureSerializer.newInstance()
-
-        var listFileName = new GetListFile("/home/ahcogn/Documents/user_data/2018-01-16").getList
-
-        //        var rawtextFile = sc.textFile(s"/home/ahcogn/Documents/user_data/2018-01-16/${listFileName(0)}")
-//                listFileName.take(quanOfFile).foreach(file => {
-//                    if (file != listFileName(0)) {
-//                        val stickFile: RDD[String] = sc.textFile(s"/home/ahcogn/Documents/user_data/2018-01-16/$file")
-//                        rawtextFile = sc.union(Seq(rawtextFile,stickFile))
-//                    }
-//                })
+        val conf: SparkConf = new SparkConf().setMaster("local").setAppName("hello from the other side")
+        val sc: SparkContext = new SparkContext(conf)
 
 
-        //        val textFile = rawtextFile.flatMap(line => line.split("\n"))
-        //        textFile.persist(StorageLevel.MEMORY_ONLY_SER_2)
-        //
-        //        val countTextFile = textFile.count();
+        // Create an RDD for the vertices
+        val vertices: RDD[(VertexId, Seq[Int])] =
+            sc.parallelize(Array((1L, Seq(1)), (2L, Seq(2)),
+                (3L, Seq(3)), (4L, Seq(4)), (5L, Seq(5)), (6L, Seq(6))))
 
-        // create vertex : user_news
-        // user_news contain: user & news
-        // malformed .flatMap(line => line.split("\n")user return id = -1
-        //        val user: RDD[(VertexId, String)] = textFile.map(line => {
-        //            val words = line.split("\t")
-        //            try {
-        //                (words(13).toLong, words(13))
-        //            } catch {
-        //                case e: Exception => (-1L, "error user")
-        //            }
-        //        }).distinct
-        //
-        //        val rawNews = textFile.map(line => {
-        //            val words = line.split("\t")
-        //            words(8) + words(11)
-        //        }).distinct()
-        //
-        //        val news: RDD[(String, Long)] = rawNews.zipWithUniqueId()
-        //
-        //        val user_news: RDD[(VertexId, String)] = user.union(news.map(news => (news._2, news._1)))
-        //
-        //        val user_newsCount = user_news.count();
+        // Create an RDD for edges
+        val relationships: RDD[Edge[Boolean]] =
+            sc.parallelize(Array(
+                Edge(6L, 1L, true),
+                Edge(6L, 3L, true),
+                Edge(5L, 1L, true),
+                Edge(5L, 4L, true),
+                Edge(2L, 4L, true),
+                Edge(2L, 1L, true),
+                Edge(2L, 3L, true)
+            ))
 
+        // Create the graph
+        val graph = Graph(vertices, relationships)
 
-        //create edge: edge relationship
-        // srcId : user Id
-        //dstID : news ID
-        // properity : news's link
-        //        val relationship: RDD[(String, Long)] = textFile
-        //                .map(line => {
-        //                    val words = line.split("\t")
-        //                    try {
-        //                        (words(8) + words(11), words(13).toLong)
-        //                    } catch {
-        //                        case e: Exception => (words(8) + words(11), -1L)
-        //                    }
-        //                })
-        //
-        //        val edge_relationship: RDD[Edge[String]] = relationship.leftOuterJoin(news).map(relation => {
-        //            Edge(relation._2._1, relation._2._2.get, relation._1)
-        //        }).distinct()
-        //
-        //        val relationshipCount = relationship.count()
+        val x: VertexId = 3L
 
-        // create Graph
-        //        val graph = Graph(user_news, edge_relationship)
-        //        println(s"++++++++++++ da den day ${countTextFile}")
-        //        println(graph.vertices.count())
+//        val hello = graph.collectNeighborIds(EdgeDirection.Out).lookup(x)
+        val hell = graph.aggregateMessages[Seq[Long]](tripletFields => {
+            tripletFields.sendToDst(Seq(tripletFields.srcId))
+        }, _.union(_)
+        ).lookup(3)
+
+        println(hell)
+        //        hello.foreach(a => {
+        //            print(a._1 + " ")
+        //            a._2.foreach(print(_))
+        //            println()
+        //        })
 
 
-        //        val newsId = graph.vertices.filter(news => news._2 == newsLink).map(news => news._1).collect()(0)
-        //        val edgeRDDs = graph.edges.filter(edgeRDD => edgeRDD.dstId == newsId)
-        //        edgeRDDs.map(edgeRDDs => edgeRDDs.srcId.toString).collect.foreach(println(_))
+        //        val minGraph = graph.pregel(initialMsg,
+        //            Int.MaxValue,
+        //            EdgeDirection.Out)(
+        //            vprog,
+        //            sendMsg,
+        //            mergeMsg)
+        //        minGraph.vertices.collect.foreach {
+        //            case (seq) => println(seq)
+        //        }
 
+        //                println(test)
 
     }
 
+    def vprog(vertexId: VertexId, value: Seq[Int], message: Seq[Int]): Seq[Int] = {
+        if (message == initialMsg)
+            value
+        else
+            value.union(message)
+    }
 
-    //    def getNews(userId: Long): Array[String] = {
-    //
-    //        val edgeRDDs = graphX.edges.filter(edgeRDD => edgeRDD.srcId == userId)
-    //        edgeRDDs.map(edgeRDDs => edgeRDDs.attr).collect
-    //    }
-    //
-    //    def getTotalsEdges: Long = {
-    //        val total = graphX.edges.count()
-    //        total
-    //    }
-    //
-    //    def getUsers(newsLink: String): Array[String] = {
-    //        val graphX = getGraph
-    //        val newsId = graphX.vertices.filter(news => news._2 == newsLink).map(news => news._1).collect()(0)
-    //        val edgeRDDs = graphX.edges.filter(edgeRDD => edgeRDD.dstId == newsId)
-    //        edgeRDDs.map(edgeRDDs => edgeRDDs.srcId.toString).collect
-    //    }
+    def sendMsg(triplet: EdgeTriplet[Seq[Int], Boolean]): Iterator[(VertexId, Seq[Int])] = {
+        val sourceVertex = triplet.srcAttr
+        val destVertex = triplet.dstAttr
 
+        if (destVertex.last == sourceVertex.head) {
+
+            Iterator.empty
+        }
+        else
+            Iterator((triplet.dstId, sourceVertex))
+    }
+
+    def mergeMsg(msg1: Seq[Int], msg2: Seq[Int]): Seq[Int] = msg1.union(msg2)
+
+    def test: Int = {
+        val hehe = Seq(1, 2, 3, 4, 5)
+        val haha = Seq(6, 7, 8, 9, 10)
+        println(hehe.union(haha))
+        return 1
+    }
 }
